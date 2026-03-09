@@ -429,13 +429,23 @@ end
 
 local function get_workspace_symbols_requester(bufnr, opts)
   local cancel = function() end
+  local current_request_id = 0
 
   return function(prompt)
+    current_request_id = current_request_id + 1
+    local this_request_id = current_request_id
+
     local tx, rx = channel.oneshot()
     cancel()
     cancel = lsp.buf_request_all(bufnr, "workspace/symbol", { query = prompt }, tx)
 
     local results = rx() ---@type table<integer, {error: lsp.ResponseError?, result: lsp.WorkspaceSymbol?}>
+
+    -- If a newer request has been started while we were waiting, discard these stale results
+    if this_request_id ~= current_request_id then
+      return {}
+    end
+
     local locations = {} ---@type vim.quickfix.entry[]
 
     for client_id, client_res in pairs(results) do
@@ -532,4 +542,9 @@ local function apply_checks(mod)
   return mod
 end
 
-return apply_checks(M)
+local checked = apply_checks(M)
+
+-- Exposed for testing only
+checked._get_workspace_symbols_requester = get_workspace_symbols_requester
+
+return checked
