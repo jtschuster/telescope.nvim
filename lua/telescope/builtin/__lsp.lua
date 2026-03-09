@@ -542,4 +542,9 @@ local function apply_checks(mod)
   return mod
 end
 
-return apply_checks(M)
+local checked = apply_checks(M)
+
+-- Exposed for testing only
+checked._get_workspace_symbols_requester = get_workspace_symbols_requester
+
+return checked
